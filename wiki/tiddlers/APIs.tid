@@ -1,0 +1,11 @@
+created: 20220217212953404
+modified: 20220217214627204
+tags: 
+title: APIs
+type: text/vnd.tiddlywiki
+
+ParaOS provides a number of different APIs for building applications. By analogy (and as far as analogies go), it's a modern day alternative to POSIX (re-thought from scratch for a different model that ParaOS operates in)
+
+---
+
+<$list filter="[tag[API]sort[title]]"/>

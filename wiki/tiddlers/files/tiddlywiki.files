@@ -1,0 +1,18 @@
+{
+   "directories": [
+        {
+            "path": "../../../api",
+            "filesRegExp": "[A-Za-z_0-9].+\\.idl",
+            "isTiddlerFile": false,
+            "isEditableFile": true,
+	    "searchSubdirectories": true,
+            "fields": {
+                "title": {"source": "filename-uri-decoded"},
+                "created": {"source": "created"},
+                "modified": {"source": "modified"},
+                "type": "text/x-idl",
+                "tags": ["externalnote",".idl"]
+            }
+        }
+  ]
+}

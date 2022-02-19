@@ -1,0 +1,6 @@
+created: 20220217212913250
+modified: 20220217212928492
+title: $:/config/SyncFilter
+type: text/vnd.tiddlywiki
+
+[is[tiddler]] -[[$:/core]] -[[$:/library/sjcl.js]] -[prefix[$:/boot/]] -[prefix[$:/StoryList]]  -[prefix[$:/HistoryList]] -[status[pending]plugin-type[import]] -[[$:/isEncrypted]] -[prefix[$:/status/]] -[prefix[$:/state/]] -[prefix[$:/temp/]]

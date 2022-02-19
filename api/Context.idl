@@ -1,0 +1,4 @@
+interface Context {
+    set<T>(self, t: T);
+    get<T>(self) Maybe<T>;
+}

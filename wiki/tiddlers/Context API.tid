@@ -1,0 +1,12 @@
+created: 20220217213749433
+modified: 20220219122017353
+tags: API
+title: Context API
+type: text/vnd.tiddlywiki
+
+The purpose of this API is to provide arbitrary context information to other APIs. For example, if one wants to use other APIs in a particular [[transaction|Transaction API]] context, they can attach that transaction to the context and use the context to make a call.
+
+<$codeblock code={{Context.idl}} />
+
+<$codeblock code={{ContextProvider.idl}} />
+
