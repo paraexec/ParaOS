@@ -26,7 +26,7 @@ jobs:
         run: cd wiki && npm install
 
       - name: Build
-        run: cd wiki && npx tiddlywiki --build
+        run: cd wiki && cp tiddlyweb.info tiddlywiki.info && npx tiddlywiki --build
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
