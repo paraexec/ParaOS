@@ -1,12 +1,12 @@
 created: 20220221190407658
-modified: 20220221190646223
+modified: 20220221215528811
 title: WebAssembly
 type: text/vnd.tiddlywiki
 
 ParaOS uses WebAssembly to achieve the following:
 
-* Language interoperability (any language that can be compiled to WebAssembly, upcoming [[Interface Types|https://github.com/WebAssembly/interface-types]], etc.)
-* Sandboxing
+* Language interoperability (support for various programming languages, upcoming [[Interface Types|https://github.com/WebAssembly/interface-types]], etc.)
+* Sandboxing and isolation between modules
 
 ParaOS achieves its goals by having its own free-standing [[WebAssembly->native compiler|Parawasm]] that can take advantage of knowledge of properties of the ParaOS itself.
 
