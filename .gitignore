@@ -1,1 +1,4 @@
 *.swp
+target
+.idea
+.DS_Store

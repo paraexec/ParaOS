@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["parawasm", "parawasm_tests"]

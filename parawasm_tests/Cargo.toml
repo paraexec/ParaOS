@@ -1,0 +1,19 @@
+[package]
+name = "parawasm_tests"
+version = "0.1.0"
+edition = "2021"
+# parawasm_tests uses unicorn-engine which is GPL, so it is licensed
+# under the terms of GPL itself (and that's why it is separate from parawasm)
+license = "GPL"
+
+[dependencies]
+parawasm = { path = "../parawasm", features = ["test"] }
+# >= 2.0.0-rc6 doesn't currently work, pending https://github.com/unicorn-engine/unicorn/pull/1559
+unicorn-engine = "=2.0.0-rc5.post1"
+wat = "1.0.41"
+byteorder = { version = "1.4.3", default-features = false }
+
+[dependencies.iced-x86]
+version = "1.16.0"
+default-features = false
+features = ["no_std", "encoder", "decoder", "intel", "code_asm"]

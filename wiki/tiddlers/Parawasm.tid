@@ -1,0 +1,8 @@
+created: 20220221190658663
+modified: 20220221193234562
+title: Parawasm
+type: text/vnd.tiddlywiki
+
+WebAssembly to native compiler.
+
+Currently supports x86_64 only and is incomplete. It is based on an understanding of assumptions that go into ParaOS' design. For example, it is currently expected that since we control all code generation, the code compiled from WebAssembly modules will be able to run in privileged mode, allowing system calls to be regular procedure calls.
