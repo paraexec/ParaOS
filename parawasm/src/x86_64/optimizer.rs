@@ -84,7 +84,7 @@ pub(crate) fn optimize_loop(
         head = &head[1..];
         head_idx += 1;
     }
-    _ = replace(
+    let _ = replace(
         labels,
         labels_
             .into_iter()
