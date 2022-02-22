@@ -6,11 +6,16 @@ jobs:
   tst:
     name: Test
     runs-on: ubuntu-latest
+    # Need to use this container for latest qemu
+    container: ubuntu:21.10
     steps:
       - uses: actions/checkout@v2
+      - name: Set up compiler & qemu
+        run: apt update && DEBIAN_FRONTEND=noninteractive apt install -y curl qemu qemu-system-x86 build-essential libssl-dev pkg-config cmake
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+          toolchain: nightly
+          components: rust-src
+      - run: cargo test --manifest-path parawasm_tests/Cargo.toml
+      - run: cd paraos && cargo test
+

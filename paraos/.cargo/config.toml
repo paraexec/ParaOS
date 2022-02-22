@@ -1,0 +1,9 @@
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+build-std-features = ["compiler-builtins-mem"]
+
+[build]
+target = ".cargo/targets/x86_64-paraos.json"
+
+[target.x86_64-paraos]
+runner = ".cargo/runner.sh"
