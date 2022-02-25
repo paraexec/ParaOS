@@ -10,7 +10,7 @@ use core::ops::{Deref, DerefMut};
 use iced_x86::code_asm::{
     dword_ptr, qword_ptr, r8, r9, rax, rbp, rcx, rdi, rdx, rsi, rsp, AsmRegister64, CodeAssembler,
 };
-use iced_x86::IcedError;
+use iced_x86::{BlockEncoderOptions, IcedError};
 use wasmparser_nostd::*;
 
 mod instructions;
@@ -207,7 +207,16 @@ impl Compiler for X86_64Compiler {
                         Payload::ImportSection(is) => {
                             for i in is {
                                 let import = i?;
-                                let offset = assembler.assemble(0)?.len();
+                                let mut current_label = assembler.create_label();
+                                assembler.set_label(&mut current_label)?;
+                                assembler.zero_bytes()?;
+                                let offset = assembler
+                                    .assemble_options(
+                                        0,
+                                        BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS,
+                                    )?
+                                    .label_ip(&current_label)?
+                                    as usize;
                                 let reference = (
                                     import.module.to_owned(),
                                     import.field.map(str::to_owned),
@@ -365,15 +374,22 @@ impl Compiler for X86_64Compiler {
         // Bind labels
         for (idx, instruction) in assembler.take_instructions().into_iter().enumerate() {
             if let Some((_, label)) = label_indices.iter_mut().find(|(i, _)| *i == idx) {
+                assembler.set_label(label)?;
+                assembler.zero_bytes()?;
                 // If this is a label pointing to a function, record function body entry point
                 if let Some((_label, index)) =
                     function_bodies.iter().find(|(label_, _)| label_ == label)
                 {
-                    module
-                        .function_bodies
-                        .insert(*index, assembler.assemble(0)?.len());
+                    module.function_bodies.insert(
+                        *index,
+                        assembler
+                            .assemble_options(
+                                0,
+                                BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS,
+                            )?
+                            .label_ip(label)? as usize,
+                    );
                 }
-                assembler.set_label(label)?;
             }
             assembler.add_instruction(instruction)?;
         }
