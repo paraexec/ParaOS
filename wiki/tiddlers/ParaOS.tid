@@ -1,10 +1,10 @@
 created: 20220217212601300
-modified: 20220221190401430
+modified: 20220301190416424
 title: ParaOS
 type: text/vnd.tiddlywiki
 
 ParaOS is an Application Operating System. What does this mean? 
 
-Unlike traditional operating systems, it focuses on providing building blocks (operational guarantees, [[APIs]], etc.) for building applications that span multiple computers as opposed to focusing on serving the underlying hardware to applications as in programs in user space.
+Unlike traditional operating systems, it focuses on providing building blocks (operational guarantees, [[APIs]], [[code mobility|Code Mobility]], etc.) for building applications that span multiple computers as opposed to focusing on serving the underlying hardware to applications as in programs in user space.
 
 In order to achieve desirable properties of language interoperability and sandboxing, ParaOS uses WebAssembly as a virtual ISA for programs that it can run.

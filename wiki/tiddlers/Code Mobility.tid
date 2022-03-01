@@ -1,0 +1,13 @@
+created: 20220301190227548
+modified: 20220301190914126
+tags: 
+title: Code Mobility
+type: text/vnd.tiddlywiki
+
+!!! Code is smaller than data
+
+One big issue we can observe is that the amount of data our system handle is vastly larger than the amount of code that handles it. So why do we send the data to the code, then? Wouldn't it make sense to send code to the data and process it there?
+
+A gained momentum of a virtual ISA and ABI that WebAssembly offers (while acknowledging its flaws and immaturity) allows us to reimagine how data processing can be done. Sandboxed code deployed across the hardware resources that manage the data will enable us to process data in place without serializing and transferring that data back and forth.
+
+What if the OS, provided building blocks for managing and processing data, starting from components like B-Trees and growing into more sophisticated data management primitives? With more sophisticated and cluster-aware scheduling, this can be a foundation for algorithms that naturally scale across the system.
