@@ -4,6 +4,33 @@ use parawasm::x86_64::X86_64Compiler;
 use parawasm::Compiler;
 
 #[test]
+fn supports_memory64() {
+    let src = r#"
+    (module (memory i64 1))
+    "#;
+    let binary = wat::parse_str(src).expect("binary module");
+    let module = X86_64Compiler::default()
+        .compile(&binary)
+        .expect("compiled module");
+    assert_eq!(1, module.memory_types().len());
+    assert!(module.memory_types()[0].memory64);
+}
+
+#[test]
+fn supports_multiple_memories() {
+    let src = r#"
+    (module (memory i64 1) (memory i32 1))
+    "#;
+    let binary = wat::parse_str(src).expect("binary module");
+    let module = X86_64Compiler::default()
+        .compile(&binary)
+        .expect("compiled module");
+    assert_eq!(2, module.memory_types().len());
+    assert!(module.memory_types()[0].memory64);
+    assert!(!module.memory_types()[1].memory64);
+}
+
+#[test]
 fn return_value() {
     let src = r#"
 (module

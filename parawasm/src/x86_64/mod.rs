@@ -68,6 +68,7 @@ pub struct Module {
     function_bodies: BTreeMap<u32, usize>,
     exports: BTreeMap<String, u32>,
     imports: BTreeMap<u32, (String, Option<String>, usize)>,
+    memories: Vec<MemoryType>,
 }
 
 pub struct FunctionIndex(u32);
@@ -98,6 +99,7 @@ impl Module {
             function_bodies: BTreeMap::new(),
             exports: BTreeMap::new(),
             imports: BTreeMap::new(),
+            memories: Vec::new(),
         }
     }
 
@@ -112,6 +114,10 @@ impl Module {
         identifier
             .find_function(self)
             .and_then(|idx| self.function_bodies.get(&idx).cloned())
+    }
+
+    pub fn memory_types(&self) -> &[MemoryType] {
+        &self.memories
     }
 }
 
@@ -192,6 +198,12 @@ impl Compiler for X86_64Compiler {
                 Chunk::Parsed { payload, consumed } => {
                     match payload {
                         Payload::End => break,
+                        Payload::MemorySection(r) => {
+                            for m in r {
+                                let mem = m?;
+                                module.memories.push(mem);
+                            }
+                        }
                         Payload::TypeSection(ts) => {
                             for t in ts {
                                 let typedef = t?;
