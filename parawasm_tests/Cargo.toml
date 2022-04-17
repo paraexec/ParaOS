@@ -8,8 +8,7 @@ license = "GPL"
 
 [dependencies]
 parawasm = { path = "../parawasm", features = ["test"] }
-# >= 2.0.0-rc6 doesn't currently work, pending https://github.com/unicorn-engine/unicorn/pull/1559
-unicorn-engine = "=2.0.0-rc5.post1"
+unicorn-engine = "=2.0.0-rc7"
 wat = "1.0.41"
 byteorder = { version = "1.4.3", default-features = false }
 
