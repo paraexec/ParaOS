@@ -8,7 +8,8 @@ use byteorder::{ByteOrder, LittleEndian};
 use core::mem::size_of;
 use core::ops::{Deref, DerefMut};
 use iced_x86::code_asm::{
-    dword_ptr, qword_ptr, r8, r9, rax, rbp, rcx, rdi, rdx, rsi, rsp, AsmRegister64, CodeAssembler,
+    dword_ptr, ptr, qword_ptr, r11, r8, r9, rax, rbp, rcx, rdi, rdx, rsi, rsp, AsmRegister64,
+    CodeAssembler,
 };
 use iced_x86::{BlockEncoderOptions, IcedError};
 use wasmparser_nostd::*;
@@ -177,6 +178,25 @@ impl Compiler for X86_64Compiler {
     type Module = AssembledModule;
 
     fn compile(&self, module: &[u8]) -> Result<Self::Module, Self::Error> {
+        let mut validator = Validator::default();
+        validator.wasm_features(WasmFeatures {
+            mutable_global: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
+            reference_types: true,
+            multi_value: true,
+            bulk_memory: true,
+            module_linking: true,
+            simd: true,
+            relaxed_simd: true,
+            threads: true,
+            tail_call: true,
+            deterministic_only: true,
+            multi_memory: true,
+            exceptions: true,
+            memory64: true,
+            extended_const: false,
+        });
         let mut assembler = CodeAssembler::new(64)?;
         let mut got = BTreeMap::new();
         let mut ils = BTreeMap::new();
@@ -196,6 +216,10 @@ impl Compiler for X86_64Compiler {
 
             match parsed {
                 Chunk::Parsed { payload, consumed } => {
+                    match validator.payload(&payload)? {
+                        ValidPayload::Func(mut validator, body) => validator.validate(&body)?,
+                        _ => {}
+                    }
                     match payload {
                         Payload::End => break,
                         Payload::MemorySection(r) => {
@@ -287,42 +311,24 @@ impl Compiler for X86_64Compiler {
                                 vec![rdi, rsi, rdx, rcx, r8, r9]
                                     .drain(0..function_type.params.len())
                                     .collect();
-                            let mut extra_args_offset: u32 = 8; // past return address
+
+                            let mut locals = vec![];
+                            let mut locals_size = 0;
+
                             for param in function_type.params.iter() {
-                                match param {
-                                    Type::I64 => match integer_order.pop_back() {
-                                        Some(reg) => assembler.push(reg)?,
-                                        None => {
-                                            assembler.push(qword_ptr(rbp + extra_args_offset))?;
-                                            extra_args_offset += param.encoding_size();
-                                        }
-                                    },
-                                    Type::I32 => match integer_order.pop_back() {
-                                        Some(reg) => assembler.push(reg)?,
-                                        None => {
-                                            assembler.push(dword_ptr(rbp + extra_args_offset))?;
-                                            extra_args_offset += param.encoding_size();
-                                        }
-                                    },
-                                    _ => todo!(),
-                                }
+                                let sz = param.encoding_size();
+                                locals.push(locals_size + sz);
+                                locals_size += sz;
                             }
 
-                            let (locals_size, locals) = cs.get_locals_reader()?.into_iter().fold(
-                                Ok((0, vec![])),
-                                |sz, local| match (sz, local) {
-                                    (Ok((size, mut vec)), Ok((count, ty))) => {
-                                        let sz = ty.encoding_size();
-                                        let new_size = size + sz * count;
-                                        for i in 0..count {
-                                            vec.push(size + sz * i);
-                                        }
-                                        Ok((new_size, vec))
-                                    }
-                                    (Err(err), _) => Err(err),
-                                    (_, Err(err)) => Err(err),
-                                },
-                            )?;
+                            for local in cs.get_locals_reader()?.into_iter() {
+                                let (count, ty) = local?;
+                                let sz = ty.encoding_size();
+                                for i in 0..count {
+                                    locals.push(locals_size + sz * i);
+                                }
+                                locals_size += sz * count;
+                            }
 
                             if locals_size > 0 {
                                 // Allocate stack for locals
@@ -331,6 +337,33 @@ impl Compiler for X86_64Compiler {
                                     iced_x86::Register::RSP,
                                     locals_size,
                                 )?)?;
+                            }
+
+                            let mut extra_args_offset: u32 = 8; // past return address
+                            for (index, param) in function_type.params.iter().enumerate() {
+                                // We know that we have such a parameter in locals, no need to check
+                                let i = *unsafe { locals.get_unchecked(index) };
+                                match param {
+                                    Type::I64 => match integer_order.pop_back() {
+                                        Some(reg) => assembler.mov(ptr(rbp - i), reg)?,
+                                        None => {
+                                            assembler
+                                                .mov(r11, qword_ptr(rbp + extra_args_offset))?;
+                                            assembler.mov(ptr(rbp - i), r11)?;
+                                            extra_args_offset += param.encoding_size();
+                                        }
+                                    },
+                                    Type::I32 => match integer_order.pop_back() {
+                                        Some(reg) => assembler.mov(ptr(rbp - i), reg)?,
+                                        None => {
+                                            assembler
+                                                .mov(r11, dword_ptr(rbp + extra_args_offset))?;
+                                            assembler.mov(ptr(rbp - i), r11)?;
+                                            extra_args_offset += param.encoding_size();
+                                        }
+                                    },
+                                    _ => todo!(),
+                                }
                             }
 
                             for op in rd.into_iter() {

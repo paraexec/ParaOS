@@ -60,6 +60,8 @@ fn passing_args_and_return_value() {
 (module
 
     (func (export "foo") (param i64) (param i64) (result i64)
+     local.get 0
+     local.get 1
      i64.sub
     )
 )
@@ -270,4 +272,17 @@ fn locals_basic() {
         .expect("call");
 
     assert_eq!(emulator.read_register(testing::RAX).unwrap(), 42);
+}
+
+#[test]
+fn should_not_compile_mismatched_stack_height_function() {
+    let foo_src = r#"
+    (module
+      (func (export "foo")
+        i64.const 10
+      )
+    )
+    "#;
+    let foo_binary = wat::parse_str(foo_src).expect("binary module");
+    assert!(X86_64Compiler::default().compile(&foo_binary).is_err());
 }
