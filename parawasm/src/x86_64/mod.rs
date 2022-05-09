@@ -67,6 +67,7 @@ impl core::default::Default for X86_64Compiler {
 pub struct Module {
     functions: BTreeMap<u32, usize>,
     function_bodies: BTreeMap<u32, usize>,
+    function_stack_heights: BTreeMap<u32, u32>,
     exports: BTreeMap<String, u32>,
     imports: BTreeMap<u32, (String, Option<String>, usize)>,
     memories: Vec<MemoryType>,
@@ -98,6 +99,7 @@ impl Module {
         Self {
             functions: BTreeMap::new(),
             function_bodies: BTreeMap::new(),
+            function_stack_heights: BTreeMap::new(),
             exports: BTreeMap::new(),
             imports: BTreeMap::new(),
             memories: Vec::new(),
@@ -115,6 +117,12 @@ impl Module {
         identifier
             .find_function(self)
             .and_then(|idx| self.function_bodies.get(&idx).cloned())
+    }
+
+    pub fn function_stack_height<I: FunctionIdentifier>(&self, identifier: I) -> Option<u32> {
+        identifier
+            .find_function(self)
+            .and_then(|idx| self.function_stack_heights.get(&idx).cloned())
     }
 
     pub fn memory_types(&self) -> &[MemoryType] {
@@ -216,19 +224,20 @@ impl Compiler for X86_64Compiler {
 
             match parsed {
                 Chunk::Parsed { payload, consumed } => {
-                    match validator.payload(&payload)? {
-                        ValidPayload::Func(mut validator, body) => validator.validate(&body)?,
-                        _ => {}
-                    }
                     match payload {
-                        Payload::End => break,
+                        Payload::End => {
+                            validator.end()?;
+                            break;
+                        }
                         Payload::MemorySection(r) => {
+                            validator.memory_section(&r)?;
                             for m in r {
                                 let mem = m?;
                                 module.memories.push(mem);
                             }
                         }
                         Payload::TypeSection(ts) => {
+                            validator.type_section(&ts)?;
                             for t in ts {
                                 let typedef = t?;
                                 match typedef {
@@ -241,6 +250,7 @@ impl Compiler for X86_64Compiler {
                             }
                         }
                         Payload::ImportSection(is) => {
+                            validator.import_section(&is)?;
                             for i in is {
                                 let import = i?;
                                 let mut current_label = assembler.create_label();
@@ -274,6 +284,7 @@ impl Compiler for X86_64Compiler {
                             }
                         }
                         Payload::FunctionSection(fs) => {
+                            validator.function_section(&fs)?;
                             for function_type in fs.into_iter() {
                                 let label = assembler.create_label();
                                 label_indices.push((assembler.instructions().len(), label));
@@ -287,6 +298,7 @@ impl Compiler for X86_64Compiler {
                             }
                         }
                         Payload::ExportSection(es) => {
+                            validator.export_section(&es)?;
                             for e in es.into_iter() {
                                 let export = e?;
                                 module
@@ -295,6 +307,7 @@ impl Compiler for X86_64Compiler {
                             }
                         }
                         Payload::CodeSectionEntry(cs) => {
+                            let mut func_validator = validator.code_section_entry()?;
                             let function_type = function_types
                                 .get(&function_body_index)
                                 .and_then(|i| function_types.get(&i))
@@ -322,12 +335,14 @@ impl Compiler for X86_64Compiler {
                             }
 
                             for local in cs.get_locals_reader()?.into_iter() {
+                                let offset = cs.get_binary_reader().current_position();
                                 let (count, ty) = local?;
                                 let sz = ty.encoding_size();
                                 for i in 0..count {
                                     locals.push(locals_size + sz * i);
                                 }
                                 locals_size += sz * count;
+                                func_validator.define_locals(offset, count, ty)?;
                             }
 
                             if locals_size > 0 {
@@ -366,8 +381,13 @@ impl Compiler for X86_64Compiler {
                                 }
                             }
 
-                            for op in rd.into_iter() {
-                                let op = op?;
+                            let mut height = func_validator.operand_stack_height();
+
+                            for op in rd.into_iter_with_offsets() {
+                                let (op, offset) = op?;
+                                func_validator.op(offset, &op)?;
+                                height =
+                                    std::cmp::max(height, func_validator.operand_stack_height());
                                 instructions::handle_instruction(
                                     &mut assembler,
                                     &mut got,
@@ -378,6 +398,12 @@ impl Compiler for X86_64Compiler {
                                     op,
                                 )?;
                             }
+
+                            func_validator.finish(cs.get_binary_reader().current_position())?;
+
+                            module
+                                .function_stack_heights
+                                .insert(function_body_index, height);
 
                             let mut integer_order = VecDeque::from([rax, rdx]);
                             for ret in function_type.returns.iter() {
@@ -404,7 +430,49 @@ impl Compiler for X86_64Compiler {
                             assembler.ret()?;
                             function_body_index += 1;
                         }
-                        _ => (),
+                        Payload::Version { num, range } => {
+                            validator.version(num, &range)?;
+                        }
+                        Payload::AliasSection(a) => {
+                            validator.alias_section(&a)?;
+                        }
+                        Payload::InstanceSection(i) => {
+                            validator.instance_section(&i)?;
+                        }
+                        Payload::TableSection(t) => {
+                            validator.table_section(&t)?;
+                        }
+                        Payload::TagSection(t) => {
+                            validator.tag_section(&t)?;
+                        }
+                        Payload::GlobalSection(g) => {
+                            validator.global_section(&g)?;
+                        }
+                        Payload::StartSection { func, range } => {
+                            validator.start_section(func, &range)?;
+                        }
+                        Payload::ElementSection(e) => {
+                            validator.element_section(&e)?;
+                        }
+                        Payload::DataCountSection { count, range } => {
+                            validator.data_count_section(count, &range)?;
+                        }
+                        Payload::DataSection(d) => {
+                            validator.data_section(&d)?;
+                        }
+                        Payload::CustomSection { .. } => {}
+                        Payload::CodeSectionStart { count, range, .. } => {
+                            validator.code_section_start(count, &range)?;
+                        }
+                        Payload::ModuleSectionStart { count, range, .. } => {
+                            validator.module_section_start(count, &range)?;
+                        }
+                        Payload::ModuleSectionEntry { .. } => {
+                            validator.module_section_entry();
+                        }
+                        Payload::UnknownSection { id, range, .. } => {
+                            validator.unknown_section(id, &range)?;
+                        }
                     }
                     data = &data[consumed..];
                     eof = data.len() == 0;

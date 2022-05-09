@@ -286,3 +286,25 @@ fn should_not_compile_mismatched_stack_height_function() {
     let foo_binary = wat::parse_str(foo_src).expect("binary module");
     assert!(X86_64Compiler::default().compile(&foo_binary).is_err());
 }
+
+#[test]
+fn function_stack_height() {
+    let foo_src = r#"
+    (module
+      (func (export "foo") (result i64)
+        (i64.const 10)
+        (i64.const 20)
+        (i64.const 30)
+        i64.add
+        i64.add
+      )
+    )
+    "#;
+
+    let foo_binary = wat::parse_str(foo_src).expect("binary module");
+    let foo_module = X86_64Compiler::default()
+        .compile(&foo_binary)
+        .expect("compiled module");
+
+    assert_eq!(3, foo_module.function_stack_height("foo").unwrap());
+}
